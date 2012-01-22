@@ -4,6 +4,9 @@ import gzip
 import StringIO
 import sys
 
+# have urllib2 automatically add received cookies to subsequent requests
+urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor))
+
 class MyLivePass(object):
 
 	def __init__(self, server=None, username=None, password=None):

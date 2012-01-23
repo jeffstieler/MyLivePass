@@ -43,6 +43,42 @@ class MyLivePass(object):
 		self.parse_user_info(response)
 		return self.user
 
+	def get_access_code(self):
+		if self.access_code:
+			return self.access_code
+		# TODO: check for logged in user, perhaps just a self.user check
+		request_body = """
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:ch="http://schemas.compassion.com/common/headers/2005-04-05">
+	<s:Header>
+		<a:Action s:mustUnderstand="1">http://RTP.LivePass.CrmUserService/ICrmUserService/RetrievePrepaidAccessProducts</a:Action>
+		<a:MessageID>urn:uuid:%s</a:MessageID>
+		<a:ReplyTo>
+			<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		</a:ReplyTo>
+		<a:To s:mustUnderstand="1">%sCrmUserService.svc</a:To>
+		<ch:UICulture>en_US</ch:UICulture>
+	</s:Header>
+	<s:Body>
+		<RetrievePrepaidAccessProducts xmlns="http://RTP.LivePass.CrmUserService">
+			<customerId>%s</customerId>
+		</RetrievePrepaidAccessProducts>
+	</s:Body>
+</s:Envelope>
+		""" % (uuid.uuid1(), self.server, self.user.get('CustomerId'))
+
+		response = self.request("CrmUserService.svc", request_body)
+		self.parse_user_access_code(response)
+		return self.access_code
+
+	def parse_user_access_code(self, access_code_response):
+		root = etree.fromstring(access_code_response)
+		namespaces = root.nsmap.copy()
+		namespaces['r'] = "http://RTP.LivePass.CrmUserService"
+		access_products = root.find("s:Body/r:RetrievePrepaidAccessProductsResponse/r:RetrievePrepaidAccessProductsResult/AccessProducts", namespaces)
+		if len(access_products):
+			product = access_products[0]
+			self.access_code = product.find('AccessCode').text
+
 	def parse_user_info(self, login_response):
 		root = etree.fromstring(login_response)
 		namespaces = root.nsmap.copy()

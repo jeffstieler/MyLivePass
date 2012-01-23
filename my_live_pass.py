@@ -14,11 +14,28 @@ urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor))
 
 class MyLivePass(object):
 
-	def __init__(self, server=None, username=None, password=None):
+	# eventually this could have data for all resorts
+	resorts = {
+		"Park City": {
+			"endpoint": "https://secure.parkcitymountain.com/mobile/",
+			"lifts": {
+				# AccessLocationDescription => vertical rise
+				"PC: PayDay": 1278,
+				"PC: Crescent": 1754,
+				"PC: First Time": 270,
+				"PC: Three Kings": 441,
+				"PC: Town": 1170,
+				"PC: Eagle": 1140
+			}
+		}
+	}
+
+	def __init__(self, resort=None, username=None, password=None):
 		self.user = {}
 		self.access_code = None
 		self.scan_history = []
-		self.server, self.username, self.password = server, username, password
+		self.server = self.resorts.get(resort, {}).get("endpoint")
+		self.username, self.password = username, password
 		if self.server and self.username and self.password:
 			pass
 
@@ -133,7 +150,6 @@ class MyLivePass(object):
 
 	def request(self, path, request_body):
 		headers = {
-			"User-Agent": "Park City 2.0 (iPhone; iPhone OS 5.0.1; en_US)",
 			"RTP-Session-Type": "Cache",
 			"Content-Type": "application/x-gzip"
 		}
@@ -159,11 +175,17 @@ class MyLivePass(object):
 		return zlib.decompress(data[10:], -zlib.MAX_WBITS)
 
 if __name__ == "__main__":
-	my_live_pass = MyLivePass("https://secure.parkcitymountain.com/mobile/", sys.argv[1], sys.argv[2])
+	my_live_pass = MyLivePass(sys.argv[1], sys.argv[2], sys.argv[3])
 	my_live_pass.login()
-	print my_live_pass.user
 	my_live_pass.get_access_code()
-	print my_live_pass.access_code
 	my_live_pass.get_scan_history()
+	total_height = 0
+	print "\n%(FirstName)s %(LastName)s (%(CustomerId)s)\n" % my_live_pass.user
+	print "Days:\t%s" % my_live_pass.user.get("PrepaidAccessScanSummary", {}).get("TotalDays")
+	print "Scans:\t%s" % my_live_pass.user.get("PrepaidAccessScanSummary", {}).get("TotalUses")
+	print "\nIndividual Scans:\n"
+	resort_lifts = MyLivePass.resorts.get(sys.argv[1], {}).get("lifts", {})
 	for s in my_live_pass.scan_history:
-		print s
+		total_height += resort_lifts.get(s["AccessLocationDescription"], 0)
+		print "%(AccessLocationDescription)s\t%(AccessDate)s @ %(AccessTime)s" % s
+	print "\nTotal Vertical Lift Height: %u feet.\n" % total_height

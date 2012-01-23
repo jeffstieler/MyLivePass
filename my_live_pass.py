@@ -4,6 +4,7 @@ import gzip
 import StringIO
 import sys
 from lxml import etree
+import zlib
 
 # have urllib2 automatically add received cookies to subsequent requests
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor))
@@ -117,12 +118,10 @@ class MyLivePass(object):
 		f.close()
 		return s.getvalue()
 
+	# use zlib to decompress the server responses since python's gzip module can't handle trailing garbage
+	# see: http://stackoverflow.com/questions/4928560/how-can-i-work-with-gzip-files-which-contain-extra-data
 	def decompress(self, data):
-		s = StringIO.StringIO(data)
-		f = gzip.GzipFile(fileobj=s, mode="r", compresslevel=9)
-		decompressed = f.read()
-		f.close()
-		return decompressed
+		return zlib.decompress(data[10:], -zlib.MAX_WBITS)
 
 if __name__ == "__main__":
 	my_live_pass = MyLivePass("https://secure.parkcitymountain.com/mobile/", sys.argv[1], sys.argv[2])

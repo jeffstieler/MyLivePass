@@ -3,6 +3,7 @@ import urllib2
 import gzip
 import StringIO
 import sys
+from lxml import etree
 
 # have urllib2 automatically add received cookies to subsequent requests
 urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor))
@@ -10,8 +11,7 @@ urllib2.install_opener(urllib2.build_opener(urllib2.HTTPCookieProcessor))
 class MyLivePass(object):
 
 	def __init__(self, server=None, username=None, password=None):
-		self.cookies = {}
-		self.session_id = None
+		self.user = {}
 		self.access_code = None
 		self.server, self.username, self.password = server, username, password
 		if self.server and self.username and self.password:
@@ -40,7 +40,24 @@ class MyLivePass(object):
 		""" % (uuid.uuid1(), self.server, self.username, self.password)
 
 		response = self.request("LivePassAuthenticationService.svc", request_body)
-		print response
+		self.parse_user_info(response)
+		return self.user
+
+	def parse_user_info(self, login_response):
+		root = etree.fromstring(login_response)
+		namespaces = root.nsmap.copy()
+		namespaces['r'] = "http://RTP.LivePass.Authentication"
+		user_info = root.find("s:Body/r:AuthenticateResponse/r:AuthenticateResult/User", namespaces)
+		self.user = self.tree_to_dict(user_info)
+
+	def tree_to_dict(self, tree):
+		dict = {}
+		for element in tree:
+			value = element.text
+			if len(element):
+				value = self.tree_to_dict(element)
+			dict[element.tag] = value
+		return dict
 
 	def request(self, path, request_body):
 		headers = {
@@ -74,3 +91,4 @@ class MyLivePass(object):
 if __name__ == "__main__":
 	my_live_pass = MyLivePass("https://secure.parkcitymountain.com/mobile/", sys.argv[1], sys.argv[2])
 	my_live_pass.login()
+	print my_live_pass.user

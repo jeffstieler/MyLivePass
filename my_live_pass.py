@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+import my_live_pass
 import uuid
 import urllib2
 import gzip
@@ -14,6 +17,7 @@ class MyLivePass(object):
 	def __init__(self, server=None, username=None, password=None):
 		self.user = {}
 		self.access_code = None
+		self.scan_history = []
 		self.server, self.username, self.password = server, username, password
 		if self.server and self.username and self.password:
 			pass
@@ -70,6 +74,37 @@ class MyLivePass(object):
 		response = self.request("CrmUserService.svc", request_body)
 		self.parse_user_access_code(response)
 		return self.access_code
+
+	def get_scan_history(self):
+		request_body = """
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:ch="http://schemas.compassion.com/common/headers/2005-04-05">
+	<s:Header>
+		<a:Action s:mustUnderstand="1">http://RTP.LivePass.CrmUserService/ICrmUserService/RetrieveIndividualAccessScanHistory</a:Action>
+		<a:MessageID>urn:uuid:%s</a:MessageID>
+		<a:ReplyTo>
+			<a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+		</a:ReplyTo>
+		<a:To s:mustUnderstand="1">%sCrmUserService.svc</a:To>
+		<ch:UICulture>en_US</ch:UICulture>
+	</s:Header>
+	<s:Body>
+		<RetrieveIndividualAccessScanHistory xmlns="http://RTP.LivePass.CrmUserService">
+			<accessCode>%s</accessCode>
+		</RetrieveIndividualAccessScanHistory>
+	</s:Body>
+</s:Envelope>
+		""" % (uuid.uuid1(), self.server, self.access_code)
+
+		response = self.request("CrmUserService.svc", request_body)
+		self.parse_scan_history(response)
+		return self.scan_history
+
+	def parse_scan_history(self, scan_history_response):
+		root = etree.fromstring(scan_history_response)
+		namespaces = root.nsmap.copy()
+		namespaces['r'] = "http://RTP.LivePass.CrmUserService"
+		scans = root.find("s:Body/r:RetrieveIndividualAccessScanHistoryResponse/r:RetrieveIndividualAccessScanHistoryResult/ScanHistory", namespaces)
+		self.scan_history = [s.attrib for s in scans]
 
 	def parse_user_access_code(self, access_code_response):
 		root = etree.fromstring(access_code_response)
@@ -129,3 +164,6 @@ if __name__ == "__main__":
 	print my_live_pass.user
 	my_live_pass.get_access_code()
 	print my_live_pass.access_code
+	my_live_pass.get_scan_history()
+	for s in my_live_pass.scan_history:
+		print s

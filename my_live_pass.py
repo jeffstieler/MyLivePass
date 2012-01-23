@@ -127,3 +127,5 @@ if __name__ == "__main__":
 	my_live_pass = MyLivePass("https://secure.parkcitymountain.com/mobile/", sys.argv[1], sys.argv[2])
 	my_live_pass.login()
 	print my_live_pass.user
+	my_live_pass.get_access_code()
+	print my_live_pass.access_code
